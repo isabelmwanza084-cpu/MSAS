@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "65957166062",
+    "project_id": "medicine-stock-alert",
+    "storage_bucket": "medicine-stock-alert.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:65957166062:android:3c85629f3348de428eacff",
+        "android_client_info": {
+          "package_name": "com.example.medicine_stock_alert"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD9FNrcOckKsux2C3K5Fm5MMTsL43ZpDk4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
