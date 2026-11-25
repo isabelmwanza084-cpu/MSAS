@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/medicine.dart';
 import '../models/stock_record.dart';
+import 'zambox_service.dart';
 
 class StockRecordService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -14,12 +15,7 @@ class StockRecordService {
   CollectionReference<Map<String, dynamic>> get _medicinesCollection =>
       _firestore.collection('medicines');
 
-  /// Saves a Received/Issued entry AND changes the medicine balance.
-  ///
-  /// Both writes go in one batch, so either both happen or neither does.
-  /// The balance uses FieldValue.increment, so it is always changed relative
-  /// to what is stored, and the batch also works with Firestore's offline
-  /// queue later.
+  // Saves a Received/Issued entry AND changes the medicine balance.
   Future<void> recordStock({
     required Medicine medicine,
     required bool received,
@@ -44,6 +40,11 @@ class StockRecordService {
       );
     }
 
+    // Calculate the expected new stock balance.
+    final int newQuantity = received
+        ? medicine.quantity + quantity
+        : medicine.quantity - quantity;
+
     final batch = _firestore.batch();
 
     batch.update(_medicinesCollection.doc(medicine.id), {
@@ -59,25 +60,63 @@ class StockRecordService {
       'type': received ? 'received' : 'issued',
       'quantity': quantity,
       'reason': received ? null : reason,
-      // Store the day only, so reports group records by calendar day.
       'date': Timestamp.fromDate(DateTime(date.year, date.month, date.day)),
       'recordedBy': user.uid,
       'createdAt': FieldValue.serverTimestamp(),
     });
 
     await batch.commit();
+
+    // Check stock levels after the stock transaction succeeds.
+    if (newQuantity <= medicine.minimumStock) {
+      await _triggerStockSms(medicine: medicine, newQuantity: newQuantity);
+    }
   }
 
-  /// All stock records for a clinic. Reports filter by date on the device,
-  /// so no Firestore composite index is needed.
+  // Send low-stock or critical-stock SMS.
+  Future<void> _triggerStockSms({
+    required Medicine medicine,
+    required int newQuantity,
+  }) async {
+    try {
+      const String recipientPhone = '+260771009396';
+
+      late String message;
+
+      if (newQuantity <= medicine.criticalStock) {
+        message =
+            'CRITICAL ALERT: ${medicine.medicineName} stock is critically low! '
+            'Only $newQuantity remaining!';
+      } else {
+        message =
+            'LOW STOCK ALERT: ${medicine.medicineName}. '
+            'Only $newQuantity left!';
+      }
+
+      final bool success = await ZamboxService.sendSms(
+        recipientPhone: recipientPhone,
+        message: message,
+      );
+
+      if (success) {
+        print('Zambox stock alert sent successfully!');
+      } else {
+        print('Zambox failed to send stock alert.');
+      }
+    } catch (e) {
+      print('Error triggering Zambox SMS: $e');
+    }
+  }
+
+  // All stock records for a clinic.
   Stream<List<StockRecord>> getRecords(String clinicId) {
     return _recordsCollection
         .where('clinicId', isEqualTo: clinicId)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => StockRecord.fromMap(doc.id, doc.data()))
-          .toList();
-    });
+          return snapshot.docs
+              .map((doc) => StockRecord.fromMap(doc.id, doc.data()))
+              .toList();
+        });
   }
 }

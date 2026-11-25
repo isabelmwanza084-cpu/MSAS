@@ -2,11 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ZamboxService {
-  static const String _baseUrl = 'https://zambox.zambrite.com/backend/api/messaging/v1/sms';
+  static const String _baseUrl = 'https://zambox.zambrite.com/api/messaging/v1/sms/send';
   
-  // Your Zambox API key
-  static const String _apiKey = 'omk_aab89f3c.e7a7f2b47f096ed37814d5db0fa7da9fea313b9b32229315';
-
+  // Active Zambox API key
+ static const String _apiKey = 'omk_25c0be94.7c4b8d247f7eb09048500e7e91c31c05a61f5e615a653087';
   static Future<bool> sendSms({
     required String recipientPhone, 
     required String message,
@@ -19,8 +18,9 @@ class ZamboxService {
           'Authorization': 'Bearer $_apiKey',
         },
         body: jsonEncode({
-          "recipient": recipientPhone,
-          "message": message,
+          "to": recipientPhone,
+          "body": message,
+          "senderId": "Natosnako", // Update if Zambox provides a verified/default Sender ID
         }),
       );
 
